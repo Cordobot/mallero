@@ -53,4 +53,4 @@ Para que tu aplicación esté disponible en internet (ej: `mallero.vercel.app`):
 - `favicon.png`: Icono de la aplicación.
 
 ---
-*Desarrollado con ❤️ para optimizar tu tiempo.*
+*Desarrollado por Adrián Alvarez.*
