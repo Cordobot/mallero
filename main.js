@@ -4,6 +4,18 @@ let selectedFile = null;
 let activeAlarms = new Set();
 let currentProcessingId = 0; // Cancela procesos de imagen si el usuario usa Opción 2
 
+// Configuración de Base de Datos (Placeholder para el usuario)
+const DB_CONFIG = {
+    url: '', // Reemplaza con tu Supabase URL
+    key: ''  // Reemplaza con tu Supabase Anon Key
+};
+
+let supabase = null;
+if (DB_CONFIG.url && DB_CONFIG.key) {
+    // @ts-ignore
+    supabase = supabase.createClient(DB_CONFIG.url, DB_CONFIG.key);
+}
+
 // Elementos DOM
 const clockElement = document.getElementById('digital-clock');
 const dropZone = document.getElementById('drop-zone');
@@ -56,6 +68,24 @@ function init() {
     setInterval(checkAlarms, 30000); 
 
     console.log('Aplicación lista. Esperando imagen...');
+
+    const savedData = localStorage.getItem('mallero_data');
+    if (savedData) {
+        const parsedData = JSON.parse(savedData);
+        if (isFromCurrentWeek(parsedData)) {
+            scheduleData = parsedData;
+            renderSchedule();
+        } else {
+            console.log('Datos expirados (semana anterior). Limpiando...');
+            localStorage.removeItem('mallero_data');
+        }
+    }
+
+    // Intentar cargar desde la nube si hay configuración
+    if (supabase) {
+        fetchCloudData();
+        subscribeToChanges();
+    }
     
     // Eventos
     dropZone.addEventListener('click', () => fileInput.click());
@@ -137,35 +167,132 @@ function init() {
     const saveBtn = document.getElementById('save-btn');
     if (saveBtn) {
         saveBtn.addEventListener('click', () => {
-            const rows = scheduleBody.querySelectorAll('tr');
-            scheduleData = Array.from(rows).map((tr) => {
-                const cells = tr.querySelectorAll('td');
-                return {
-                    fecha: cells[0].innerText.trim(),
-                    dia: cells[1].innerText.trim(),
-                    ini: cells[2].innerText.trim(),
-                    fin: cells[3].innerText.trim(),
-                    iniInter: cells[4].innerText.trim(),
-                    finInter: cells[5].innerText.trim(),
-                    break: cells[6].innerText.trim()
-                };
-            });
-            localStorage.setItem('mallero_data', JSON.stringify(scheduleData));
-            saveBtn.style.display = 'none';
-            showToast('✅ Cambios guardados correctamente');
-            renderSchedule();
+            saveData(true); // Forzar guardado manual con feedback
         });
-    }
-
-    const savedData = localStorage.getItem('mallero_data');
-    if (savedData) {
-        scheduleData = JSON.parse(savedData);
-        renderSchedule();
     }
 
     if ("Notification" in window) {
         Notification.requestPermission();
     }
+}
+
+function saveData(manual = false) {
+    const rows = scheduleBody.querySelectorAll('tr');
+    if (rows.length === 0) return;
+
+    scheduleData = Array.from(rows).map((tr) => {
+        const cells = tr.querySelectorAll('td');
+        return {
+            fecha: cells[0].innerText.trim(),
+            dia: cells[1].innerText.trim(),
+            ini: cells[2].innerText.trim(),
+            fin: cells[3].innerText.trim(),
+            iniInter: cells[4].innerText.trim(),
+            finInter: cells[5].innerText.trim(),
+            break: cells[6].innerText.trim()
+        };
+    });
+
+    // Guardar localmente siempre
+    localStorage.setItem('mallero_data', JSON.stringify(scheduleData));
+    
+    // Sincronizar con la nube si está configurado
+    if (supabase) {
+        syncCloudData(scheduleData);
+    }
+
+    // Si es manual, mostrar feedback y refrescar (para badges de estado)
+    if (manual) {
+        const saveBtn = document.getElementById('save-btn');
+        if (saveBtn) saveBtn.style.display = 'none';
+        showToast('✅ Cambios guardados correctamente');
+        renderSchedule();
+    }
+}
+
+function isFromCurrentWeek(data) {
+    if (!data || data.length === 0) return false;
+    
+    const dates = data.map(row => row.fecha).filter(f => f && f !== '---');
+    if (dates.length === 0) return true;
+
+    const now = new Date();
+    // Obtener el lunes de esta semana (0=Dom, 1=Lun)
+    const currentMonday = new Date(now);
+    const dow = now.getDay();
+    const diff = now.getDate() - (dow === 0 ? 6 : dow - 1);
+    currentMonday.setDate(diff);
+    currentMonday.setHours(0, 0, 0, 0);
+
+    const parseDate = (str) => {
+        const parts = str.split('/');
+        if (parts.length < 3) return new Date(0);
+        const [d, m, y] = parts.map(Number);
+        return new Date(y, m - 1, d);
+    };
+
+    // Si la fecha más lejana en la tabla es igual o superior al lunes de esta semana, es válida.
+    const latestDate = dates.reduce((max, curr) => {
+        const d = parseDate(curr);
+        return d > max ? d : max;
+    }, new Date(0));
+
+    return latestDate >= currentMonday;
+}
+
+// --- Funciones de Sincronización en la Nube ---
+
+async function fetchCloudData() {
+    if (!supabase) return;
+    try {
+        const { data, error } = await supabase
+            .from('malla_data')
+            .select('content')
+            .eq('id', 'current_schedule')
+            .single();
+
+        if (data && data.content) {
+            const cloudData = JSON.parse(data.content);
+            if (isFromCurrentWeek(cloudData)) {
+                scheduleData = cloudData;
+                renderSchedule();
+            }
+        }
+    } catch (err) {
+        console.error('Error al descargar datos de la nube:', err);
+    }
+}
+
+async function syncCloudData(data) {
+    if (!supabase) return;
+    try {
+        await supabase
+            .from('malla_data')
+            .upsert({ 
+                id: 'current_schedule', 
+                content: JSON.stringify(data),
+                updated_at: new Date().toISOString()
+            });
+    } catch (err) {
+        console.error('Error al sincronizar con la nube:', err);
+    }
+}
+
+function subscribeToChanges() {
+    if (!supabase) return;
+    supabase
+        .channel('public:malla_data')
+        .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'malla_data' }, payload => {
+            if (payload.new && payload.new.id === 'current_schedule') {
+                const newData = JSON.parse(payload.new.content);
+                // Solo actualizar si es diferente para evitar loops
+                if (JSON.stringify(newData) !== JSON.stringify(scheduleData)) {
+                    scheduleData = newData;
+                    renderSchedule();
+                }
+            }
+        })
+        .subscribe();
 }
 
 function updateClock() {
@@ -538,7 +665,13 @@ function renderSchedule() {
     const editableCells = scheduleBody.querySelectorAll('.editable');
     editableCells.forEach(cell => {
         cell.addEventListener('input', () => {
-            document.getElementById('save-btn').style.display = 'inline-block';
+            const saveBtn = document.getElementById('save-btn');
+            if (saveBtn) saveBtn.style.display = 'inline-block';
+        });
+
+        // Auto-guardado al salir de la celda (blur)
+        cell.addEventListener('blur', () => {
+            saveData(false); // Guardado silencioso
         });
     });
 }
