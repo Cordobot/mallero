@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mallero - Gestor de Horarios</title>
+    <link rel="icon" type="image/png" href="favicon.png">
+    <meta name="description" content="Gestiona tu malla de trabajo detalladamente con alarmas automáticas.">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="./style.css">
+    <!-- Tesseract.js para OCR -->
+    <script src='https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js'></script>
+</head>
+<body>
+    <div id="app">
+        <header>
+            <div class="logo">
+                <span class="icon">📅</span>
+                <div style="display: flex; flex-direction: column;">
+                    <h1>Mallero</h1>
+                    <p style="font-size: 0.8rem; color: var(--text-muted);">Gestor de Horarios</p>
+                </div>
+            </div>
+            
+            <div class="countdown-container" style="background: rgba(245, 158, 11, 0.1); border: 1px solid rgba(245, 158, 11, 0.3); padding: 0.75rem 1.5rem; border-radius: 12px; text-align: center; box-shadow: 0 4px 15px rgba(245, 158, 11, 0.1);">
+                <div id="countdown-display" style="font-size: 1.5rem; font-weight: 700; color: #f59e0b; letter-spacing: 1px;">--:--:--</div>
+            </div>
+        </header>
+
+        <main>
+            <div id="save-toast" class="toast-top">✅ Cambios guardados correctamente</div>
+
+            <section class="card" id="input-section" style="display: flex; gap: 20px; flex-wrap: wrap; align-items: stretch;">
+                <div style="flex: 1; min-width: 250px; display: flex; flex-direction: column;">
+                    <h2 style="font-size: 1.1rem; margin-bottom: 0.5rem;">📸 Opción 1: Subir Imagen</h2>
+                    <div class="upload-container" id="drop-zone" style="flex: 1; padding: 1rem;">
+                        <input type="file" id="excel-upload" accept="image/*" hidden>
+                        <div class="upload-content">
+                            <span class="upload-icon" style="font-size: 1.8rem;">🖼️</span>
+                            <p id="file-name-display" style="font-size: 0.85rem;">Arrastra o Pega (Ctrl+V) captura aquí</p>
+                        </div>
+                    </div>
+                    <div class="upload-actions" id="upload-actions" style="display: none; margin-top: 8px;">
+                        <div class="progress-container">
+                            <div class="progress-bar" id="upload-progress"></div>
+                        </div>
+                    </div>
+                    <button id="process-btn" class="btn-primary" style="padding: 0.6rem 1rem; font-size: 0.85rem; margin-top: 10px;">Procesar Imagen</button>
+                </div>
+                
+                <div style="flex: 1; min-width: 250px; display: flex; flex-direction: column;">
+                    <h2 style="font-size: 1.1rem; margin-bottom: 0.5rem;">📝 Opción 2: Pegar Excel (Recomendado)</h2>
+                    <textarea id="excel-paste" placeholder="Pega los datos de Excel aquí..." style="flex: 1; width: 100%; min-height: 80px; background: rgba(15, 23, 42, 0.5); color: white; border: 1px solid var(--border-color); border-radius: 0.75rem; padding: 0.8rem; font-family: monospace; resize: none; box-sizing: border-box;"></textarea>
+                    <button id="process-text-btn" class="btn-primary" style="margin-top: 10px; background: linear-gradient(135deg, #10b981 0%, #059669 100%); padding: 0.6rem 1rem; font-size: 0.85rem;">Procesar Texto</button>
+                </div>
+            </section>
+
+            <section class="schedule-section card" id="schedule-container" style="display: none;">
+                <div class="section-header">
+                    <div>
+                        <h2 style="font-size:1.3rem; background: linear-gradient(135deg,#6366f1,#ec4899); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text;">📋 Tu Malla de Trabajo</h2>
+                        <p style="font-size: 0.78rem; color: #f59e0b; margin-top:4px;">✏️ Haz clic en cualquier celda para editarla. Guarda los cambios al terminar.</p>
+                    </div>
+                    <div style="display: flex; gap: 10px;">
+                        <button id="save-btn" class="btn-primary" style="margin: 0; padding: 0.5rem 1.2rem; font-size: 0.85rem; background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); display: none;">💾 Guardar</button>
+                        <button id="clear-data" class="btn-secondary" style="padding:0.5rem 1rem;">🗑️ Limpiar</button>
+                    </div>
+                </div>
+                <div class="table-wrapper">
+                    <table id="schedule-table">
+                        <thead>
+                            <tr>
+                                <th><span class="th-inner">📅 Fecha</span></th>
+                                <th><span class="th-inner">📆 Día</span></th>
+                                <th><span class="th-inner">🟢 Entrada</span></th>
+                                <th><span class="th-inner">🔴 Salida</span></th>
+                                <th><span class="th-inner">🍽️ Ini Inter</span></th>
+                                <th><span class="th-inner">↩️ Fin Inter</span></th>
+                                <th><span class="th-inner">☕ Break</span></th>
+                                <th><span class="th-inner">⚡ Estado</span></th>
+                            </tr>
+                        </thead>
+                        <tbody id="schedule-body">
+                            <!-- Datos dinámicos aquí -->
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+        </main>
+
+        <div id="alarm-notification" class="alarm-toast" style="display: none;">
+            <div class="alarm-content">
+                <span class="alarm-icon">🔔</span>
+                <div class="alarm-content">
+                    <h3 id="alarm-title">¡Turno de mañana!</h3>
+                    <p id="alarm-desc">Recuerda que mañana entras a trabajar.</p>
+                    <div style="display: flex; gap: 10px; margin-top: 1rem;">
+                        <button id="close-alarm" class="btn-secondary" style="padding: 0.5rem 1rem; font-size: 0.8rem;">Entendido</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de Confirmación personalizado -->
+    <div id="confirm-overlay" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.6); backdrop-filter:blur(6px); z-index:10000; display:none; align-items:center; justify-content:center;">
+        <div id="confirm-modal" style="background: linear-gradient(135deg, rgba(30,41,59,0.95) 0%, rgba(15,23,42,0.98) 100%); border:1px solid rgba(255,255,255,0.12); border-radius:20px; padding:2rem 2.5rem; max-width:380px; width:90%; box-shadow:0 25px 60px rgba(0,0,0,0.5), 0 0 0 1px rgba(99,102,241,0.2); animation: modalIn 0.25s cubic-bezier(0.34,1.56,0.64,1);">
+            <div style="text-align:center; margin-bottom:1.5rem;">
+                <div style="font-size:3rem; margin-bottom:0.75rem;">🗑️</div>
+                <h3 style="font-size:1.2rem; font-weight:700; color:#f8fafc; margin-bottom:0.5rem;">¿Borrar toda la malla?</h3>
+                <p style="font-size:0.875rem; color:#94a3b8; line-height:1.6;">Esta acción eliminará todos tus horarios guardados y <strong style="color:#f87171;">no se puede deshacer</strong>.</p>
+            </div>
+            <div style="display:flex; gap:12px;">
+                <button id="confirm-cancel" style="flex:1; padding:0.75rem; border-radius:12px; border:1px solid rgba(255,255,255,0.15); background:rgba(255,255,255,0.05); color:#cbd5e1; font-size:0.9rem; font-weight:600; cursor:pointer; transition:all 0.2s;">Cancelar</button>
+                <button id="confirm-ok" style="flex:1; padding:0.75rem; border-radius:12px; border:none; background:linear-gradient(135deg,#ef4444,#dc2626); color:white; font-size:0.9rem; font-weight:700; cursor:pointer; transition:all 0.2s; box-shadow:0 4px 15px rgba(239,68,68,0.3);">Sí, borrar</button>
+            </div>
+        </div>
+    </div>
+
+    <script type="module" src="./main.js"></script>
+</body>
+</html>
