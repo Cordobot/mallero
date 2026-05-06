@@ -3,6 +3,7 @@ let scheduleData = [];
 let selectedFile = null;
 let activeAlarms = new Set();
 let currentProcessingId = 0; // Cancela procesos de imagen si el usuario usa Opción 2
+let currentUserId = localStorage.getItem('mallero_user_id') || '';
 
 // Configuración de Base de Datos (Placeholder para el usuario)
 const DB_CONFIG = {
@@ -68,6 +69,37 @@ function init() {
     setInterval(checkAlarms, 30000); 
 
     console.log('Aplicación lista. Esperando imagen...');
+
+    // Inicializar campo ID
+    const userIdInput = document.getElementById('user-id');
+    if (userIdInput) {
+        userIdInput.value = currentUserId;
+        userIdInput.addEventListener('change', (e) => {
+            currentUserId = e.target.value.trim();
+            localStorage.setItem('mallero_user_id', currentUserId);
+            if (currentUserId && supabase) {
+                fetchCloudData();
+                subscribeToChanges();
+            }
+        });
+    }
+
+    const loadBtn = document.getElementById('load-btn');
+    if (loadBtn) {
+        loadBtn.addEventListener('click', () => {
+            currentUserId = userIdInput.value.trim();
+            if (!currentUserId) {
+                alert('Por favor ingresa tu cédula.');
+                userIdInput.focus();
+                return;
+            }
+            localStorage.setItem('mallero_user_id', currentUserId);
+            if (supabase) {
+                fetchCloudData();
+                subscribeToChanges();
+            }
+        });
+    }
 
     const savedData = localStorage.getItem('mallero_data');
     if (savedData) {
@@ -177,6 +209,12 @@ function init() {
 }
 
 function saveData(manual = false) {
+    if (!currentUserId) {
+        alert('Debes ingresar tu cédula para guardar los datos.');
+        document.getElementById('user-id').focus();
+        return;
+    }
+
     const rows = scheduleBody.querySelectorAll('tr');
     if (rows.length === 0) return;
 
@@ -243,12 +281,12 @@ function isFromCurrentWeek(data) {
 // --- Funciones de Sincronización en la Nube ---
 
 async function fetchCloudData() {
-    if (!supabase) return;
+    if (!supabase || !currentUserId) return;
     try {
         const { data, error } = await supabase
             .from('malla_data')
             .select('content')
-            .eq('id', 'current_schedule')
+            .eq('id', currentUserId)
             .single();
 
         if (data && data.content) {
@@ -264,12 +302,12 @@ async function fetchCloudData() {
 }
 
 async function syncCloudData(data) {
-    if (!supabase) return;
+    if (!supabase || !currentUserId) return;
     try {
         await supabase
             .from('malla_data')
             .upsert({ 
-                id: 'current_schedule', 
+                id: currentUserId, 
                 content: JSON.stringify(data),
                 updated_at: new Date().toISOString()
             });
@@ -279,11 +317,15 @@ async function syncCloudData(data) {
 }
 
 function subscribeToChanges() {
-    if (!supabase) return;
+    if (!supabase || !currentUserId) return;
+    
+    // Eliminar suscripciones previas si existen para evitar duplicados al cambiar de ID
+    supabase.removeAllChannels();
+
     supabase
         .channel('public:malla_data')
         .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'malla_data' }, payload => {
-            if (payload.new && payload.new.id === 'current_schedule') {
+            if (payload.new && payload.new.id === currentUserId) {
                 const newData = JSON.parse(payload.new.content);
                 // Solo actualizar si es diferente para evitar loops
                 if (JSON.stringify(newData) !== JSON.stringify(scheduleData)) {
@@ -566,6 +608,11 @@ function parseOCRText(text) {
 
     localStorage.setItem('mallero_data', JSON.stringify(scheduleData));
     renderSchedule();
+    
+    // Sincronizar con la nube si hay un ID ingresado
+    if (supabase && currentUserId) {
+        syncCloudData(scheduleData);
+    }
 }
 
 // --- Renderizado ---

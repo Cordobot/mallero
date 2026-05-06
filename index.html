@@ -34,6 +34,16 @@
         <main>
             <div id="save-toast" class="toast-top">✅ Cambios guardados correctamente</div>
 
+            <!-- Sección de Identidad -->
+            <section class="card" id="auth-section" style="margin-bottom: 20px; display: flex; align-items: center; gap: 15px; padding: 1rem 1.5rem; flex-wrap: wrap;">
+                <div style="font-size: 1.5rem;">🆔</div>
+                <div style="flex: 1; min-width: 200px;">
+                    <label for="user-id" style="display: block; font-size: 0.75rem; color: var(--text-muted); margin-bottom: 4px;">Ingresa tu Cédula para ver/guardar tu malla</label>
+                    <input type="text" id="user-id" placeholder="Ej: 12345678" style="width: 100%; background: rgba(15, 23, 42, 0.5); color: white; border: 1px solid var(--border-color); border-radius: 8px; padding: 0.5rem 0.8rem; font-size: 1rem; outline: none;">
+                </div>
+                <button id="load-btn" class="btn-primary" style="padding: 0.55rem 1.5rem; font-size: 0.85rem; margin: 0;">Cargar</button>
+            </section>
+
             <section class="card" id="input-section" style="display: flex; gap: 20px; flex-wrap: wrap; align-items: stretch;">
                 <div style="flex: 1; min-width: 250px; display: flex; flex-direction: column;">
                     <h2 style="font-size: 1.1rem; margin-bottom: 0.5rem;">📸 Opción 1: Subir Imagen</h2>
