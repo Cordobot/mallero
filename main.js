@@ -76,12 +76,28 @@ function init() {
     });
     document.addEventListener('paste', (e) => {
         const items = e.clipboardData.items;
+        let imageDetected = false;
+
         for (let i = 0; i < items.length; i++) {
             if (items[i].type.indexOf('image') !== -1) {
                 const blob = items[i].getAsFile();
+                
+                // Feedback visual: Hacer que la zona de carga brille un momento
+                dropZone.style.borderColor = '#6366f1';
+                dropZone.style.background = 'rgba(99, 102, 241, 0.15)';
+                setTimeout(() => {
+                    dropZone.style.borderColor = '';
+                    dropZone.style.background = '';
+                }, 400);
+
                 prepareUpload(blob);
+                imageDetected = true;
                 break;
             }
+        }
+
+        if (imageDetected && e.target.tagName !== 'TEXTAREA') {
+            e.preventDefault();
         }
     });
     processBtn.addEventListener('click', handleUpload);
