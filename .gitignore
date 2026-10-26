@@ -22,3 +22,7 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Mallas reales: contienen datos personales de compañeros
+*.xlsx
+*.xls

@@ -1,13 +1,24 @@
 # 📅 Mallero - Gestor de Horarios
 
-Mallero es una herramienta web híbrida para la gestión de turnos laborales. Permite cargar horarios mediante OCR (capturas de pantalla) o pegando datos directamente desde Excel, ofreciendo persistencia local y recordatorios automáticos por WhatsApp.
+Mallero es una herramienta web para la gestión de turnos laborales. Subes el Excel de la malla semanal, escribes tu cédula y la app toma tus horarios (fecha, día, entrada, almuerzo, breaks y salida) y programa las alarmas.
 
 ## 🚀 Funcionalidades Principales
-- **Entrada Dual**: OCR avanzado para leer capturas de malla y pegado TSV de Excel 100% fiable.
-- **Edición Inline**: Modifica cualquier celda directamente en la tabla y guarda los cambios.
-- **Resaltado Inteligente**: Indica visualmente el turno actual, el próximo turno y el día de hoy.
-- **Automatización**: Envío automático de recordatorio por WhatsApp a las 10:00 PM del día anterior al turno.
-- **Diseño Premium**: Interfaz moderna con glassmorphism, animaciones fluidas y modo oscuro.
+- **Carga directa del Excel**: Arrastra el `.xlsx` de la malla y Mallero busca tu fila por cédula. El archivo se lee solo en el navegador (SheetJS) y no se sube a ningún servidor.
+- **Respaldo**: OCR de capturas de pantalla y pegado de texto desde Excel, en "Otras opciones".
+- **Edición Inline**: Modifica cualquier celda directamente en la tabla y guarda los cambios. Varios breaks en un día se separan con `/` (ej: `13:45/18:45`).
+- **Alarmas en la página**: Aviso con sonido y notificación para entrada, salida y regreso de almuerzo, cada break, salida y un recordatorio a las 10:00 PM del día anterior. Puedes elegir qué alarmas activar y cuántos minutos antes avisar. Solo suenan con la pestaña abierta.
+- **Exportar a calendario (.ics)**: Descarga todos los eventos de la semana con su alarma para importarlos en Google Calendar, Outlook o el calendario del celular, y que suenen aunque cierres el navegador.
+- **WhatsApp**: Desde el aviso de alarma puedes enviarte el recordatorio a tu número (configurable).
+- **Resaltado Inteligente**: Indica visualmente el turno actual, el próximo turno y el día de hoy, con cuenta regresiva al próximo evento.
+
+## 📄 Formato esperado del Excel
+La hoja debe tener una fila de encabezados con la columna `Cedula`. Encima de ella van:
+- Dos filas arriba: el nombre de cada día (`Lunes` … `Domingo`) sobre su bloque, y el grupo `Break`.
+- Una fila arriba: la fecha de cada día.
+
+Cada día tiene las columnas `Hora Inicio`, `Inter Ini`, `Inter Fin` y `Hora Fin`; el grupo `Break` tiene una columna por día. Un día sin horas se toma como descanso. Las columnas se ubican por su encabezado, así que no importa en qué letra queden.
+
+> ⚠️ Las mallas reales contienen datos de otras personas. El `.gitignore` excluye los archivos `.xlsx` para que no se suban al repositorio.
 
 ---
 
@@ -48,7 +59,7 @@ Para que tu aplicación esté disponible en internet (ej: `mallero.vercel.app`):
 
 ## 📂 Estructura del Proyecto
 - `index.html`: Estructura y diseño base.
-- `main.js`: Lógica de procesamiento de datos, OCR y alarmas.
+- `main.js`: Lectura del Excel, OCR, alarmas y exportación a calendario.
 - `style.css`: Estilos premium y animaciones.
 - `favicon.png`: Icono de la aplicación.
 
