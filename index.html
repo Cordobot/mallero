@@ -10,6 +10,8 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="./style.css">
+    <!-- SheetJS para leer la malla en Excel -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <!-- Tesseract.js para OCR -->
     <script src='https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js'></script>
     <!-- Supabase Client -->
@@ -44,29 +46,45 @@
                 <button id="load-btn" class="btn-primary" style="padding: 0.55rem 1.5rem; font-size: 0.85rem; margin: 0;">Cargar</button>
             </section>
 
-            <section class="card" id="input-section" style="display: flex; gap: 20px; flex-wrap: wrap; align-items: stretch;">
-                <div style="flex: 1; min-width: 250px; display: flex; flex-direction: column;">
-                    <h2 style="font-size: 1.1rem; margin-bottom: 0.5rem;">📸 Opción 1: Subir Imagen</h2>
-                    <div class="upload-container" id="drop-zone" style="flex: 1; padding: 1rem;">
-                        <input type="file" id="excel-upload" accept="image/*" hidden>
-                        <div class="upload-content">
-                            <span class="upload-icon" style="font-size: 1.8rem;">🖼️</span>
-                            <p id="file-name-display" style="font-size: 0.85rem;">Arrastra o Pega (Ctrl+V) captura aquí</p>
+            <section class="card" id="input-section">
+                <h2 style="font-size: 1.1rem; margin-bottom: 0.5rem;">📊 Sube tu malla en Excel</h2>
+                <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 0.75rem;">Se busca tu fila por cédula. El archivo se lee solo en tu navegador: no se sube a ningún servidor.</p>
+                <div class="upload-container" id="xlsx-drop-zone" style="padding: 1.5rem;">
+                    <input type="file" id="xlsx-upload" accept=".xlsx,.xls,.xlsm,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel" hidden>
+                    <div class="upload-content">
+                        <span class="upload-icon" style="font-size: 2.2rem; margin-bottom: 0.5rem;">📂</span>
+                        <p id="xlsx-name-display" style="font-size: 0.9rem;">Arrastra aquí el archivo <span>.xlsx</span> o haz clic para elegirlo</p>
+                    </div>
+                </div>
+
+                <details style="margin-top: 1.25rem;">
+                    <summary style="cursor: pointer; font-size: 0.85rem; color: var(--text-muted);">Otras opciones: captura de pantalla o pegar texto</summary>
+                    <div style="display: flex; gap: 20px; flex-wrap: wrap; align-items: stretch; margin-top: 1rem;">
+                        <div style="flex: 1; min-width: 250px; display: flex; flex-direction: column;">
+                            <h2 style="font-size: 1rem; margin-bottom: 0.5rem;">📸 Subir Imagen</h2>
+                            <div class="upload-container" id="drop-zone" style="flex: 1; padding: 1rem;">
+                                <input type="file" id="excel-upload" accept="image/*" hidden>
+                                <div class="upload-content">
+                                    <span class="upload-icon" style="font-size: 1.8rem;">🖼️</span>
+                                    <p id="file-name-display" style="font-size: 0.85rem;">Arrastra o Pega (Ctrl+V) captura aquí</p>
+                                </div>
+                            </div>
+                            <div class="upload-actions" id="upload-actions" style="display: none; margin-top: 8px;">
+                                <div class="progress-container">
+                                    <div class="progress-bar" id="upload-progress"></div>
+                                </div>
+                                <p id="ocr-status" style="display: none; font-size: 0.8rem; color: var(--text-muted);"><span id="ocr-progress"></span></p>
+                            </div>
+                            <button id="process-btn" class="btn-primary" style="padding: 0.6rem 1rem; font-size: 0.85rem; margin-top: 10px;">Procesar Imagen</button>
+                        </div>
+
+                        <div style="flex: 1; min-width: 250px; display: flex; flex-direction: column;">
+                            <h2 style="font-size: 1rem; margin-bottom: 0.5rem;">📝 Pegar desde Excel</h2>
+                            <textarea id="excel-paste" placeholder="Pega los datos de Excel aquí..." style="flex: 1; width: 100%; min-height: 80px; background: rgba(15, 23, 42, 0.5); color: white; border: 1px solid var(--border-color); border-radius: 0.75rem; padding: 0.8rem; font-family: monospace; resize: none; box-sizing: border-box;"></textarea>
+                            <button id="process-text-btn" class="btn-primary" style="margin-top: 10px; background: linear-gradient(135deg, #10b981 0%, #059669 100%); padding: 0.6rem 1rem; font-size: 0.85rem;">Procesar Texto</button>
                         </div>
                     </div>
-                    <div class="upload-actions" id="upload-actions" style="display: none; margin-top: 8px;">
-                        <div class="progress-container">
-                            <div class="progress-bar" id="upload-progress"></div>
-                        </div>
-                    </div>
-                    <button id="process-btn" class="btn-primary" style="padding: 0.6rem 1rem; font-size: 0.85rem; margin-top: 10px;">Procesar Imagen</button>
-                </div>
-                
-                <div style="flex: 1; min-width: 250px; display: flex; flex-direction: column;">
-                    <h2 style="font-size: 1.1rem; margin-bottom: 0.5rem;">📝 Opción 2: Pegar Excel (Recomendado)</h2>
-                    <textarea id="excel-paste" placeholder="Pega los datos de Excel aquí..." style="flex: 1; width: 100%; min-height: 80px; background: rgba(15, 23, 42, 0.5); color: white; border: 1px solid var(--border-color); border-radius: 0.75rem; padding: 0.8rem; font-family: monospace; resize: none; box-sizing: border-box;"></textarea>
-                    <button id="process-text-btn" class="btn-primary" style="margin-top: 10px; background: linear-gradient(135deg, #10b981 0%, #059669 100%); padding: 0.6rem 1rem; font-size: 0.85rem;">Procesar Texto</button>
-                </div>
+                </details>
             </section>
 
             <section class="schedule-section card" id="schedule-container" style="display: none;">
@@ -99,17 +117,58 @@
                         </tbody>
                     </table>
                 </div>
+                <p style="font-size: 0.75rem; color: var(--text-muted); margin-top: 0.6rem;">Si tienes varios breaks en un día escríbelos separados por "/", ej: 13:45/18:45</p>
+            </section>
+
+            <section class="card" id="alarm-section" style="display: none;">
+                <div class="section-header" style="flex-wrap: wrap; gap: 10px;">
+                    <h2 style="font-size: 1.2rem; margin: 0;">⏰ Alarmas</h2>
+                    <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                        <button id="enable-alarms-btn" class="btn-primary" style="margin: 0; width: auto; padding: 0.5rem 1.2rem; font-size: 0.85rem;">🔔 Activar alarmas</button>
+                        <button id="export-ics-btn" class="btn-primary" style="margin: 0; width: auto; padding: 0.5rem 1.2rem; font-size: 0.85rem; background: linear-gradient(135deg, #10b981 0%, #059669 100%);">📆 Exportar a calendario (.ics)</button>
+                    </div>
+                </div>
+                <p id="alarm-permission-status" style="font-size: 0.8rem; color: #f59e0b; margin-bottom: 1rem;"></p>
+
+                <div class="alarm-settings">
+                    <label class="alarm-check"><input type="checkbox" data-alarm="entrada" checked> 🟢 Entrada</label>
+                    <label class="alarm-check"><input type="checkbox" data-alarm="almuerzo" checked> 🍽️ Almuerzo (salida y regreso)</label>
+                    <label class="alarm-check"><input type="checkbox" data-alarm="break" checked> ☕ Break</label>
+                    <label class="alarm-check"><input type="checkbox" data-alarm="salida" checked> 🔴 Salida</label>
+                    <label class="alarm-check"><input type="checkbox" data-alarm="noche" checked> 🌙 Recordatorio 10:00 PM del día anterior</label>
+                </div>
+
+                <div style="display: flex; gap: 20px; flex-wrap: wrap; margin-top: 1rem;">
+                    <div style="flex: 1; min-width: 180px;">
+                        <label for="alarm-lead" style="display: block; font-size: 0.75rem; margin-bottom: 4px;">Avisarme antes</label>
+                        <select id="alarm-lead" class="alarm-input">
+                            <option value="0">A la hora exacta</option>
+                            <option value="5" selected>5 minutos antes</option>
+                            <option value="10">10 minutos antes</option>
+                            <option value="15">15 minutos antes</option>
+                        </select>
+                    </div>
+                    <div style="flex: 1; min-width: 180px;">
+                        <label for="wa-number" style="display: block; font-size: 0.75rem; margin-bottom: 4px;">WhatsApp para recordatorios (opcional, con indicativo)</label>
+                        <input type="text" id="wa-number" class="alarm-input" placeholder="Ej: 573001234567" inputmode="numeric">
+                    </div>
+                </div>
+
+                <h3 style="font-size: 0.95rem; margin: 1.5rem 0 0.5rem;">Próximas alarmas</h3>
+                <ul id="upcoming-alarms" class="upcoming-list"></ul>
+                <p style="font-size: 0.75rem; color: var(--text-muted); margin-top: 0.75rem;">Las alarmas de la página solo suenan con esta pestaña abierta. Para que suenen aunque cierres el navegador, usa "Exportar a calendario" e importa el archivo en Google Calendar o en el calendario de tu celular.</p>
             </section>
         </main>
 
         <div id="alarm-notification" class="alarm-toast" style="display: none;">
             <div class="alarm-content">
                 <span class="alarm-icon">🔔</span>
-                <div class="alarm-content">
-                    <h3 id="alarm-title">¡Turno de mañana!</h3>
-                    <p id="alarm-desc">Recuerda que mañana entras a trabajar.</p>
+                <div class="alarm-text">
+                    <h3 id="alarm-title" style="font-size: 1rem; margin-bottom: 0.35rem;">¡Turno de mañana!</h3>
+                    <p id="alarm-desc" style="white-space: pre-line;">Recuerda que mañana entras a trabajar.</p>
                     <div style="display: flex; gap: 10px; margin-top: 1rem;">
                         <button id="close-alarm" class="btn-secondary" style="padding: 0.5rem 1rem; font-size: 0.8rem;">Entendido</button>
+                        <button id="wa-btn" class="btn-secondary" style="padding: 0.5rem 1rem; font-size: 0.8rem;">📲 Enviar por WhatsApp</button>
                     </div>
                 </div>
             </div>
