@@ -4,6 +4,7 @@ let selectedFile = null;
 let currentProcessingId = 0; // Cancela procesos de imagen si el usuario usa otra opción
 let currentUserId = localStorage.getItem('mallero_user_id') || '';
 let audioCtx = null;
+let lastRefreshMinute = ''; // Minuto del último refresco de la tabla
 
 const DAY_NAMES = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
 const BREAK_MINUTES = 15; // Duración asumida de cada break (para el calendario)
@@ -124,6 +125,16 @@ function init() {
     updateClock();
     setInterval(updateClock, 1000);
     setInterval(checkAlarms, 10000);
+
+    // Al volver a la página (pestaña dormida, app en segundo plano o restaurada desde caché)
+    // se refresca todo para no mostrar el día anterior
+    document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'visible') refreshView();
+    });
+    window.addEventListener('pageshow', (e) => {
+        if (e.persisted) refreshView();
+    });
+    window.addEventListener('focus', refreshView);
 
     // Inicializar campo ID
     const userIdInput = document.getElementById('user-id');
@@ -568,6 +579,7 @@ async function fetchCloudData() {
             const cloudData = JSON.parse(data.content);
             if (isFromCurrentWeek(cloudData)) {
                 scheduleData = cloudData;
+                localStorage.setItem('mallero_data', JSON.stringify(scheduleData));
                 renderSchedule();
             }
         }
@@ -605,6 +617,7 @@ function subscribeToChanges() {
                 // Solo actualizar si es diferente para evitar loops
                 if (JSON.stringify(newData) !== JSON.stringify(scheduleData)) {
                     scheduleData = newData;
+                    localStorage.setItem('mallero_data', JSON.stringify(scheduleData));
                     renderSchedule();
                 }
             }
@@ -614,6 +627,47 @@ function subscribeToChanges() {
 
 function updateClock() {
     const now = new Date();
+    updateCurrentDate(now);
+    updateCountdown(now);
+
+    // Cada minuto (y al cambiar de día) se recalculan estados y el resaltado de "hoy"
+    const minuteKey = `${formatDate(now)} ${formatHM(now)}`;
+    if (minuteKey !== lastRefreshMinute) refreshView();
+}
+
+function updateCurrentDate(now) {
+    const dateText = now.toLocaleDateString('es-CO', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+    const timeText = now.toLocaleTimeString('es-CO', { hour: 'numeric', minute: '2-digit', hour12: true });
+    document.getElementById('current-date').textContent =
+        `📅 ${dateText.charAt(0).toUpperCase()}${dateText.slice(1)} · ${timeText}`;
+}
+
+function refreshView() {
+    const now = new Date();
+    lastRefreshMinute = `${formatDate(now)} ${formatHM(now)}`;
+
+    // No interrumpir si el usuario está editando una celda
+    if (document.activeElement && document.activeElement.classList.contains('editable')) return;
+
+    // Releer lo guardado: puede haber cambiado en otra pestaña o haber vencido la semana
+    let saved = [];
+    try {
+        saved = JSON.parse(localStorage.getItem('mallero_data') || '[]');
+    } catch (e) {}
+
+    if (saved.length > 0 && !isFromCurrentWeek(saved)) {
+        console.log('Datos expirados (semana anterior). Limpiando...');
+        clearData();
+        return;
+    }
+
+    if (saved.length > 0) {
+        scheduleData = saved;
+        renderSchedule();
+    } else if (scheduleData.length > 0) {
+        clearData();
+    }
+
     updateCountdown(now);
 }
 
