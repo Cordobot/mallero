@@ -47,11 +47,11 @@ jobs:
 
       # Publica el APK en "Releases" para descargarlo fácil desde el celular
       - name: Publicar en Releases
-        if: github.ref == 'refs/heads/main'
+        if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/app-android'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           gh release delete apk --yes --cleanup-tag || true
-          gh release create apk mallero.apk \
+          gh release create apk mallero.apk --target "$GITHUB_SHA" \
             --title "Mallero para Android" \
             --notes "APK compilado automáticamente desde ${GITHUB_SHA::7}. Descarga mallero.apk en el celular e instálalo."
