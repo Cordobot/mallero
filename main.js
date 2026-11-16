@@ -36,9 +36,10 @@ if (nativeAlarm) document.documentElement.classList.add('native-app');
 
 // Configuración de Base de Datos (Placeholder para el usuario)
 const DB_CONFIG = {
-    url: '', // Reemplaza con tu Supabase URL
-    key: ''  // Reemplaza con tu Supabase Anon Key
+    url: 'https://dfnztpxdyaiefbmwodtv.supabase.co',
+    key: 'sb_publishable_xHOtRDSkjIn5wxipIkxrww_aofKZFKv' // clave pública: es seguro tenerla en la página
 };
+let currentPin = localStorage.getItem('mallero_pin') || '';
 
 let supabase = null;
 if (DB_CONFIG.url && DB_CONFIG.key && window.supabase) {
@@ -152,6 +153,8 @@ function init() {
             refreshView();
             // Al volver de los ajustes de Android se actualiza el estado de los permisos
             if (nativeAlarm) updatePermissionStatus();
+            // Al volver a la app/pestaña se trae lo último de la nube
+            fetchCloudData();
         }
     });
     window.addEventListener('pageshow', (e) => {
@@ -159,36 +162,30 @@ function init() {
     });
     window.addEventListener('focus', refreshView);
 
-    // Inicializar campo ID
+    // Identidad para sincronizar: cédula + PIN
     const userIdInput = document.getElementById('user-id');
-    if (userIdInput) {
-        userIdInput.value = currentUserId;
-        userIdInput.addEventListener('change', (e) => {
-            currentUserId = e.target.value.trim();
-            localStorage.setItem('mallero_user_id', currentUserId);
-            if (currentUserId && supabase) {
-                fetchCloudData();
-                subscribeToChanges();
+    const pinInput = document.getElementById('user-pin');
+    userIdInput.value = currentUserId;
+    pinInput.value = currentPin;
+    const connect = (showErrors) => {
+        currentUserId = userIdInput.value.trim();
+        currentPin = pinInput.value.replace(/\D/g, '');
+        pinInput.value = currentPin;
+        localStorage.setItem('mallero_user_id', currentUserId);
+        localStorage.setItem('mallero_pin', currentPin);
+        if (!currentUserId || currentPin.length < 4) {
+            if (showErrors) {
+                alert(!currentUserId ? 'Por favor ingresa tu cédula.' : 'Escribe un PIN de 4 a 6 dígitos. Usa el mismo en la web y en la app.');
+                (!currentUserId ? userIdInput : pinInput).focus();
             }
-        });
-    }
-
-    const loadBtn = document.getElementById('load-btn');
-    if (loadBtn) {
-        loadBtn.addEventListener('click', () => {
-            currentUserId = userIdInput.value.trim();
-            if (!currentUserId) {
-                alert('Por favor ingresa tu cédula.');
-                userIdInput.focus();
-                return;
-            }
-            localStorage.setItem('mallero_user_id', currentUserId);
-            if (supabase) {
-                fetchCloudData();
-                subscribeToChanges();
-            }
-        });
-    }
+            setSyncStatus('Escribe tu cédula y un PIN para sincronizar la web y la app.');
+            return;
+        }
+        connectCloud(true);
+    };
+    userIdInput.addEventListener('change', () => connect(false));
+    pinInput.addEventListener('change', () => connect(false));
+    document.getElementById('load-btn').addEventListener('click', () => connect(true));
 
     const savedData = localStorage.getItem('mallero_data');
     if (savedData) {
@@ -202,11 +199,8 @@ function init() {
         }
     }
 
-    // Intentar cargar desde la nube si hay configuración
-    if (supabase) {
-        fetchCloudData();
-        subscribeToChanges();
-    }
+    // Traer de la nube lo último (malla y ajustes)
+    connectCloud(false);
 
     // Eventos: Excel
     xlsxDropZone.addEventListener('click', () => xlsxInput.click());
@@ -326,12 +320,9 @@ function isExcelFile(file) {
 function applySchedule(data) {
     scheduleData = data;
     localStorage.setItem('mallero_data', JSON.stringify(scheduleData));
+    markLocalChange();
     renderSchedule();
-
-    // Sincronizar con la nube si hay un ID ingresado
-    if (supabase && currentUserId) {
-        syncCloudData(scheduleData);
-    }
+    syncCloudData();
 }
 
 function saveData(manual = false) {
@@ -357,13 +348,10 @@ function saveData(manual = false) {
         };
     });
 
-    // Guardar localmente siempre
+    // Guardar localmente siempre y subir a la nube
     localStorage.setItem('mallero_data', JSON.stringify(scheduleData));
-
-    // Sincronizar con la nube si está configurado
-    if (supabase) {
-        syncCloudData(scheduleData);
-    }
+    markLocalChange();
+    syncCloudData();
 
     // Si es manual, mostrar feedback y refrescar (para badges de estado)
     if (manual) {
@@ -589,60 +577,134 @@ async function handleExcelFile(file) {
 
 // --- Funciones de Sincronización en la Nube ---
 
-async function fetchCloudData() {
-    if (!supabase || !currentUserId) return;
+// --- Sincronización en la nube (Supabase) ---
+// La fila se identifica con un hash de cédula + PIN: en la nube no queda la cédula
+// y nadie puede leer tu malla sabiendo solo tu cédula.
+
+let cloudId = '';
+let cloudChannel = null;
+
+function setSyncStatus(text, color) {
+    const el = document.getElementById('sync-status');
+    if (!el) return;
+    el.textContent = text;
+    el.style.color = color || 'var(--text-muted)';
+}
+
+async function computeCloudId() {
+    if (!currentUserId || currentPin.length < 4) return '';
+    const bytes = new TextEncoder().encode(`mallero:${currentUserId}:${currentPin}`);
+    const hash = await crypto.subtle.digest('SHA-256', bytes);
+    return Array.from(new Uint8Array(hash), (b) => b.toString(16).padStart(2, '0')).join('');
+}
+
+function localUpdatedAt() {
+    return Number(localStorage.getItem('mallero_updated_at') || 0);
+}
+
+function markLocalChange() {
+    localStorage.setItem('mallero_updated_at', String(Date.now()));
+}
+
+// Aplica lo que llegó de la nube (malla y ajustes de alarmas)
+function applyCloudContent(content) {
+    let parsed;
     try {
+        parsed = JSON.parse(content);
+    } catch (e) {
+        return false;
+    }
+    // Formato antiguo: solo la lista de días
+    const schedule = Array.isArray(parsed) ? parsed : parsed.schedule;
+    const updatedAt = Array.isArray(parsed) ? 0 : Number(parsed.updatedAt || 0);
+    if (updatedAt && updatedAt <= localUpdatedAt()) return false;
+
+    if (parsed.settings) {
+        localStorage.setItem('mallero_alarm_settings', JSON.stringify(parsed.settings));
+        refreshAlarmSettingsUI();
+    }
+    if (Array.isArray(schedule) && schedule.length && isFromCurrentWeek(schedule)) {
+        scheduleData = schedule;
+        localStorage.setItem('mallero_data', JSON.stringify(scheduleData));
+        renderSchedule();
+    }
+    localStorage.setItem('mallero_updated_at', String(updatedAt || Date.now()));
+    renderUpcomingAlarms();
+    return true;
+}
+
+async function connectCloud(announce) {
+    if (!supabase) return;
+    const id = await computeCloudId();
+    if (!id) {
+        setSyncStatus('Escribe tu cédula y un PIN para sincronizar la web y la app.');
+        return;
+    }
+    cloudId = id;
+    await fetchCloudData(announce);
+    subscribeToChanges();
+}
+
+async function fetchCloudData(announce = false) {
+    if (!supabase || !cloudId) return;
+    try {
+        setSyncStatus('🔄 Sincronizando…');
         const { data, error } = await supabase
             .from('malla_data')
             .select('content')
-            .eq('id', currentUserId)
-            .single();
+            .eq('id', cloudId)
+            .maybeSingle();
+        if (error) throw error;
 
-        if (data && data.content) {
-            const cloudData = JSON.parse(data.content);
-            if (isFromCurrentWeek(cloudData)) {
-                scheduleData = cloudData;
-                localStorage.setItem('mallero_data', JSON.stringify(scheduleData));
-                renderSchedule();
-            }
+        if (data && data.content && applyCloudContent(data.content)) {
+            if (announce) showToast('☁️ Datos sincronizados');
+        } else if (scheduleData.length) {
+            // Lo de este dispositivo es más nuevo (o la nube está vacía): se sube
+            await syncCloudData();
         }
+        setSyncStatus('☁️ Sincronizado: la web y la app comparten tu malla y tus ajustes.', '#10b981');
     } catch (err) {
         console.error('Error al descargar datos de la nube:', err);
+        setSyncStatus('⚠️ Sin conexión con la nube: se usan los datos guardados en este dispositivo.', '#f59e0b');
     }
 }
 
-async function syncCloudData(data) {
-    if (!supabase || !currentUserId) return;
+async function syncCloudData() {
+    if (!supabase) return;
+    // La cédula puede cambiar al cargar un Excel: se recalcula la fila
+    const id = await computeCloudId();
+    if (!id) return;
+    if (id !== cloudId) {
+        cloudId = id;
+        subscribeToChanges();
+    }
+    if (!localUpdatedAt()) markLocalChange();
     try {
-        await supabase
+        const { error } = await supabase
             .from('malla_data')
             .upsert({
-                id: currentUserId,
-                content: JSON.stringify(data),
+                id: cloudId,
+                content: JSON.stringify({ schedule: scheduleData, settings: getAlarmSettings(), updatedAt: localUpdatedAt() }),
                 updated_at: new Date().toISOString()
             });
+        if (error) throw error;
+        setSyncStatus('☁️ Sincronizado: la web y la app comparten tu malla y tus ajustes.', '#10b981');
     } catch (err) {
         console.error('Error al sincronizar con la nube:', err);
+        setSyncStatus('⚠️ No se pudo subir a la nube. Se reintentará con el próximo cambio.', '#f59e0b');
     }
 }
 
 function subscribeToChanges() {
-    if (!supabase || !currentUserId) return;
+    if (!supabase || !cloudId) return;
+    if (cloudChannel) supabase.removeChannel(cloudChannel);
 
-    // Eliminar suscripciones previas si existen para evitar duplicados al cambiar de ID
-    supabase.removeAllChannels();
-
-    supabase
-        .channel('public:malla_data')
-        .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'malla_data' }, payload => {
-            if (payload.new && payload.new.id === currentUserId) {
-                const newData = JSON.parse(payload.new.content);
-                // Solo actualizar si es diferente para evitar loops
-                if (JSON.stringify(newData) !== JSON.stringify(scheduleData)) {
-                    scheduleData = newData;
-                    localStorage.setItem('mallero_data', JSON.stringify(scheduleData));
-                    renderSchedule();
-                }
+    // Solo se escuchan los cambios de tu propia fila
+    cloudChannel = supabase
+        .channel(`malla_${cloudId.slice(0, 16)}`)
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'malla_data', filter: `id=eq.${cloudId}` }, (payload) => {
+            if (payload.new && payload.new.content && applyCloudContent(payload.new.content)) {
+                showToast('☁️ Cambios recibidos de tu otro dispositivo');
             }
         })
         .subscribe();
@@ -1125,8 +1187,27 @@ function getAlarmSettings() {
     }
 }
 
+let settingsSyncTimer = null;
 function saveAlarmSettings(settings) {
     localStorage.setItem('mallero_alarm_settings', JSON.stringify(settings));
+    markLocalChange();
+    clearTimeout(settingsSyncTimer);
+    settingsSyncTimer = setTimeout(syncCloudData, 800);
+}
+
+// Refleja en los controles los ajustes que llegaron de otro dispositivo
+function refreshAlarmSettingsUI() {
+    const settings = getAlarmSettings();
+    document.querySelectorAll('[data-alarm]').forEach((c) => { c.checked = !!settings.types[c.dataset.alarm]; });
+    document.querySelectorAll('[data-challenge-on]').forEach((c) => { c.checked = !!settings.challengeOn[c.dataset.challengeOn]; });
+    document.querySelectorAll('[data-challenge-type]').forEach((c) => { c.checked = !!settings.challengeTypes[c.dataset.challengeType]; });
+    const set = (id, v) => { const el = document.getElementById(id); if (el) el.value = String(v); };
+    set('alarm-lead', settings.lead);
+    set('wa-number', settings.wa);
+    set('challenge-difficulty', settings.difficulty);
+    set('snooze-minutes', settings.snoozeMinutes);
+    set('snooze-max', settings.snoozeMax);
+    updateSnoozeVisibility();
 }
 
 function initAlarmSettings() {

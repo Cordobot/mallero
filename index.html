@@ -44,7 +44,12 @@
                     <label for="user-id" style="display: block; font-size: 0.75rem; color: var(--text-muted); margin-bottom: 4px;">Ingresa tu Cédula para ver/guardar tu malla</label>
                     <input type="text" id="user-id" placeholder="Ej: 12345678" style="width: 100%; background: rgba(15, 23, 42, 0.5); color: white; border: 1px solid var(--border-color); border-radius: 8px; padding: 0.5rem 0.8rem; font-size: 1rem; outline: none;">
                 </div>
+                <div style="width: 130px;">
+                    <label for="user-pin" style="display: block; font-size: 0.75rem; color: var(--text-muted); margin-bottom: 4px;">PIN de sincronización</label>
+                    <input type="password" id="user-pin" placeholder="4-6 dígitos" inputmode="numeric" maxlength="6" autocomplete="off" style="width: 100%; background: rgba(15, 23, 42, 0.5); color: white; border: 1px solid var(--border-color); border-radius: 8px; padding: 0.5rem 0.8rem; font-size: 1rem; outline: none;">
+                </div>
                 <button id="load-btn" class="btn-primary" style="padding: 0.55rem 1.5rem; font-size: 0.85rem; margin: 0;">Cargar</button>
+                <p id="sync-status" style="width: 100%; font-size: 0.75rem; color: var(--text-muted); margin: 0;">Usa la misma cédula y PIN en la web y en la app para tener los mismos datos.</p>
             </section>
 
             <section class="card" id="input-section">
