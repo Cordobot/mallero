@@ -155,9 +155,57 @@
                     </div>
                 </div>
 
+                <h3 style="font-size: 0.95rem; margin: 1.5rem 0 0.5rem;">🧠 Retos para apagar la alarma</h3>
+                <p style="font-size: 0.75rem; color: var(--text-muted); margin-bottom: 0.6rem;">La alarma sigue sonando hasta que superes el reto.</p>
+                <label style="display: block; font-size: 0.75rem; margin-bottom: 4px;">Alarmas que piden reto</label>
+                <div class="alarm-settings">
+                    <label class="alarm-check"><input type="checkbox" data-challenge-on="entrada"> 🟢 Entrada</label>
+                    <label class="alarm-check"><input type="checkbox" data-challenge-on="almuerzo"> 🍽️ Almuerzo</label>
+                    <label class="alarm-check"><input type="checkbox" data-challenge-on="break"> ☕ Break</label>
+                    <label class="alarm-check"><input type="checkbox" data-challenge-on="salida"> 🔴 Salida</label>
+                    <label class="alarm-check"><input type="checkbox" data-challenge-on="noche"> 🌙 10:00 PM</label>
+                </div>
+                <label style="display: block; font-size: 0.75rem; margin: 0.9rem 0 4px;">Tipos de reto (se elige uno al azar)</label>
+                <div class="alarm-settings">
+                    <label class="alarm-check"><input type="checkbox" data-challenge-type="math"> 🧮 Matemáticas</label>
+                    <label class="alarm-check"><input type="checkbox" data-challenge-type="pattern"> 🧩 Memorizar patrón</label>
+                    <label class="alarm-check"><input type="checkbox" data-challenge-type="shake"> 📳 Agitar el teléfono</label>
+                    <label class="alarm-check"><input type="checkbox" data-challenge-type="phrase"> ✍️ Escribir una frase</label>
+                </div>
+                <div style="display: flex; gap: 20px; flex-wrap: wrap; margin-top: 1rem;">
+                    <div style="flex: 1; min-width: 140px;">
+                        <label for="challenge-difficulty" style="display: block; font-size: 0.75rem; margin-bottom: 4px;">Dificultad</label>
+                        <select id="challenge-difficulty" class="alarm-input">
+                            <option value="easy">Fácil</option>
+                            <option value="medium">Media</option>
+                            <option value="hard">Difícil</option>
+                        </select>
+                    </div>
+                    <div style="flex: 1; min-width: 140px;">
+                        <label for="snooze-minutes" style="display: block; font-size: 0.75rem; margin-bottom: 4px;">Posponer</label>
+                        <select id="snooze-minutes" class="alarm-input">
+                            <option value="0">No permitir</option>
+                            <option value="3">3 minutos</option>
+                            <option value="5">5 minutos</option>
+                            <option value="10">10 minutos</option>
+                            <option value="15">15 minutos</option>
+                        </select>
+                    </div>
+                    <div style="flex: 1; min-width: 140px;" id="snooze-max-wrap">
+                        <label for="snooze-max" style="display: block; font-size: 0.75rem; margin-bottom: 4px;">Máximo de veces</label>
+                        <select id="snooze-max" class="alarm-input">
+                            <option value="1">1 vez</option>
+                            <option value="2">2 veces</option>
+                            <option value="3">3 veces</option>
+                            <option value="5">5 veces</option>
+                        </select>
+                    </div>
+                </div>
+                <button id="test-alarm-btn" class="btn-secondary" style="margin-top: 1rem; padding: 0.5rem 1rem; font-size: 0.85rem;">🧪 Probar alarma con reto</button>
+
                 <h3 style="font-size: 0.95rem; margin: 1.5rem 0 0.5rem;">Próximas alarmas</h3>
                 <ul id="upcoming-alarms" class="upcoming-list"></ul>
-                <p style="font-size: 0.75rem; color: var(--text-muted); margin-top: 0.75rem;">Las alarmas de la página solo suenan con esta pestaña abierta. Para que suenen aunque cierres el navegador, usa "Exportar a calendario" e importa el archivo en Google Calendar o en el calendario de tu celular.</p>
+                <p class="web-only" style="font-size: 0.75rem; color: var(--text-muted); margin-top: 0.75rem;">Las alarmas de la página solo suenan con esta pestaña abierta. Para que suenen aunque cierres el navegador, usa "Exportar a calendario" e importa el archivo en Google Calendar o en el calendario de tu celular.</p>
             </section>
         </main>
 

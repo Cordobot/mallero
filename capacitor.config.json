@@ -1,0 +1,8 @@
+{
+  "appId": "com.mallero.app",
+  "appName": "Mallero",
+  "webDir": "www",
+  "android": {
+    "allowMixedContent": false
+  }
+}

@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Mallero · Alarma</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+        html, body { height: 100%; }
+        body {
+            font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+            background: radial-gradient(circle at 50% 0%, #312e81 0%, #0f172a 60%);
+            color: #f8fafc; display: flex; flex-direction: column; align-items: center;
+            padding: 2rem 1.25rem; user-select: none; -webkit-user-select: none; overflow-x: hidden;
+        }
+        .clock { font-size: 3.5rem; font-weight: 800; letter-spacing: -2px; }
+        .title { font-size: 1.25rem; font-weight: 700; margin-top: 0.25rem; text-align: center; }
+        .body { font-size: 0.9rem; color: #94a3b8; margin-top: 0.4rem; text-align: center; white-space: pre-line; }
+        .ring { font-size: 3rem; margin: 1rem 0 0.5rem; animation: shake 0.6s infinite; }
+        @keyframes shake { 0%,100% { transform: rotate(0); } 25% { transform: rotate(-14deg); } 75% { transform: rotate(14deg); } }
+        .card {
+            width: 100%; max-width: 380px; background: rgba(30, 41, 59, 0.8); border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 20px; padding: 1.25rem; margin-top: 1rem; text-align: center;
+        }
+        .label { font-size: 0.8rem; color: #94a3b8; text-transform: uppercase; letter-spacing: 1px; }
+        .progress { font-size: 0.8rem; color: #a5b4fc; margin-top: 0.25rem; }
+        .question { font-size: 2.2rem; font-weight: 800; margin: 0.75rem 0; }
+        .answer {
+            width: 100%; font-size: 1.6rem; text-align: center; padding: 0.6rem; border-radius: 12px;
+            border: 2px solid rgba(255,255,255,0.15); background: rgba(15,23,42,0.8); color: #f8fafc; outline: none;
+        }
+        .answer:focus { border-color: #6366f1; }
+        .answer.wrong { border-color: #ef4444; animation: nope 0.3s; }
+        @keyframes nope { 25% { transform: translateX(-8px); } 75% { transform: translateX(8px); } }
+        .btn {
+            width: 100%; padding: 0.9rem; margin-top: 0.75rem; border: none; border-radius: 14px; font-size: 1rem;
+            font-weight: 700; color: white; background: linear-gradient(135deg, #6366f1, #4f46e5); cursor: pointer;
+        }
+        .btn.secondary { background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.15); color: #cbd5e1; }
+        .btn.danger { background: linear-gradient(135deg, #10b981, #059669); }
+        .grid { display: grid; gap: 10px; margin: 0.75rem auto 0; }
+        .cell { aspect-ratio: 1; border-radius: 14px; background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.12); transition: background 0.15s, transform 0.15s; }
+        .cell.on { background: #6366f1; transform: scale(1.05); box-shadow: 0 0 20px #6366f1; }
+        .cell.ok { background: #10b981; }
+        .cell.bad { background: #ef4444; }
+        .phrase { font-size: 1.05rem; font-weight: 600; line-height: 1.5; margin: 0.75rem 0; padding: 0.75rem; background: rgba(15,23,42,0.6); border-radius: 12px; }
+        textarea.answer { font-size: 1rem; text-align: left; min-height: 90px; resize: none; }
+        .meter { height: 14px; background: rgba(255,255,255,0.08); border-radius: 999px; overflow: hidden; margin: 1rem 0 0.5rem; }
+        .meter > div { height: 100%; width: 0; background: linear-gradient(90deg, #6366f1, #ec4899); transition: width 0.15s; }
+        .big { font-size: 3rem; font-weight: 800; }
+        .hint { font-size: 0.8rem; color: #94a3b8; margin-top: 0.5rem; }
+        .done { font-size: 4rem; margin: 1rem 0; }
+    </style>
+</head>
+<body>
+    <div class="ring">⏰</div>
+    <div class="clock" id="clock">--:--</div>
+    <div class="title" id="title">Alarma</div>
+    <div class="body" id="body"></div>
+
+    <div class="card" id="stage"></div>
+    <div style="width: 100%; max-width: 380px;">
+        <button class="btn secondary" id="snooze-btn" style="display: none;"></button>
+    </div>
+
+    <script src="./challenge.js"></script>
+</body>
+</html>

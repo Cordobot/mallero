@@ -57,6 +57,23 @@ Para que tu aplicación esté disponible en internet (ej: `mallero.vercel.app`):
 
 ---
 
+## 📱 App Android (alarmas con reto)
+
+La misma página se empaqueta como app Android con [Capacitor](https://capacitorjs.com). En la app, las alarmas las programa el sistema (`AlarmManager`), así que suenan con la app cerrada, el teléfono bloqueado o después de reiniciar.
+
+- **Retos para apagarla** (estilo Alarmy): matemáticas, memorizar un patrón, agitar el teléfono o escribir una frase. Se elige uno al azar entre los que actives.
+- **Dificultad** fácil, media o difícil, **posponer** configurable (minutos y número de veces) y qué alarmas piden reto.
+- La alarma sube el volumen poco a poco, no se apaga con "atrás" ni con los botones de volumen.
+- En la web el reto también aparece (con la pestaña abierta).
+
+**Descargar:** cada cambio en `main` compila el APK con GitHub Actions y lo publica en *Releases → Mallero para Android* (`mallero.apk`). Instálalo en el celular (permite "instalar apps desconocidas"), abre la app, carga tu malla y pulsa **Activar alarmas** hasta que diga ✅.
+
+**Compilar en tu PC** (necesitas Node 22, JDK 21 y Android Studio): `npm install && npm run android:prepare`, luego abre la carpeta `android/` en Android Studio.
+
+Archivos: `challenge.html`/`challenge.js` (pantalla de reto, compartida con la web), `android-src/` (código nativo: plugin, servicio de alarma, pantalla sobre el bloqueo, reprogramación al reiniciar), `scripts/` (preparación del proyecto Android).
+
+---
+
 ## 📂 Estructura del Proyecto
 - `index.html`: Estructura y diseño base.
 - `main.js`: Lectura del Excel, OCR, alarmas y exportación a calendario.

@@ -26,3 +26,8 @@ dist-ssr
 # Mallas reales: contienen datos personales de compañeros
 *.xlsx
 *.xls
+
+# App Android: se genera en GitHub Actions (npm run android:prepare)
+www
+android
+package-lock.json

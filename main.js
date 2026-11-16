@@ -12,8 +12,27 @@ const ALARM_GRACE_MS = 3 * 60 * 1000; // Margen por si el navegador congela la p
 const DEFAULT_ALARM_SETTINGS = {
     types: { entrada: true, almuerzo: true, break: true, salida: true, noche: true },
     lead: 5,
-    wa: ''
+    wa: '',
+    // Retos para apagar la alarma (estilo Alarmy)
+    challengeOn: { entrada: true, almuerzo: true, break: true, salida: true, noche: false },
+    challengeTypes: { math: true, pattern: true, shake: true, phrase: true },
+    difficulty: 'medium',
+    snoozeMinutes: 5, // 0 = no se puede posponer
+    snoozeMax: 2
 };
+
+// App Android (Capacitor): las alarmas las programa el sistema y suenan con la app cerrada
+const nativeAlarm = (() => {
+    const cap = window.Capacitor;
+    if (!cap || !cap.isNativePlatform || !cap.isNativePlatform()) return null;
+    try {
+        return cap.registerPlugin ? cap.registerPlugin('MalleroAlarm') : (cap.Plugins && cap.Plugins.MalleroAlarm) || null;
+    } catch (e) {
+        return null;
+    }
+})();
+let lastNativeSync = '';
+if (nativeAlarm) document.documentElement.classList.add('native-app');
 
 // Configuración de Base de Datos (Placeholder para el usuario)
 const DB_CONFIG = {
@@ -129,7 +148,11 @@ function init() {
     // Al volver a la página (pestaña dormida, app en segundo plano o restaurada desde caché)
     // se refresca todo para no mostrar el día anterior
     document.addEventListener('visibilitychange', () => {
-        if (document.visibilityState === 'visible') refreshView();
+        if (document.visibilityState === 'visible') {
+            refreshView();
+            // Al volver de los ajustes de Android se actualiza el estado de los permisos
+            if (nativeAlarm) updatePermissionStatus();
+        }
     });
     window.addEventListener('pageshow', (e) => {
         if (e.persisted) refreshView();
@@ -1090,7 +1113,12 @@ function getAlarmSettings() {
         return {
             types: { ...DEFAULT_ALARM_SETTINGS.types, ...(saved.types || {}) },
             lead: Number.isFinite(saved.lead) ? saved.lead : DEFAULT_ALARM_SETTINGS.lead,
-            wa: typeof saved.wa === 'string' ? saved.wa : DEFAULT_ALARM_SETTINGS.wa
+            wa: typeof saved.wa === 'string' ? saved.wa : DEFAULT_ALARM_SETTINGS.wa,
+            challengeOn: { ...DEFAULT_ALARM_SETTINGS.challengeOn, ...(saved.challengeOn || {}) },
+            challengeTypes: { ...DEFAULT_ALARM_SETTINGS.challengeTypes, ...(saved.challengeTypes || {}) },
+            difficulty: ['easy', 'medium', 'hard'].includes(saved.difficulty) ? saved.difficulty : DEFAULT_ALARM_SETTINGS.difficulty,
+            snoozeMinutes: Number.isFinite(saved.snoozeMinutes) ? saved.snoozeMinutes : DEFAULT_ALARM_SETTINGS.snoozeMinutes,
+            snoozeMax: Number.isFinite(saved.snoozeMax) ? saved.snoozeMax : DEFAULT_ALARM_SETTINGS.snoozeMax
         };
     } catch (e) {
         return structuredClone(DEFAULT_ALARM_SETTINGS);
@@ -1123,6 +1151,45 @@ function initAlarmSettings() {
         renderUpcomingAlarms();
     });
 
+    // Ajustes de retos y posponer
+    const bindCheckboxes = (selector, attr, key) => {
+        document.querySelectorAll(selector).forEach((checkbox) => {
+            checkbox.checked = !!settings[key][checkbox.dataset[attr]];
+            checkbox.addEventListener('change', () => {
+                const current = getAlarmSettings();
+                current[key][checkbox.dataset[attr]] = checkbox.checked;
+                // Siempre debe quedar al menos un tipo de reto
+                if (key === 'challengeTypes' && !Object.values(current.challengeTypes).some(Boolean)) {
+                    checkbox.checked = true;
+                    current.challengeTypes[checkbox.dataset[attr]] = true;
+                    showToast('Deja al menos un tipo de reto activo');
+                }
+                saveAlarmSettings(current);
+                renderUpcomingAlarms();
+            });
+        });
+    };
+    bindCheckboxes('[data-challenge-on]', 'challengeOn', 'challengeOn');
+    bindCheckboxes('[data-challenge-type]', 'challengeType', 'challengeTypes');
+
+    const bindSelect = (id, key, toValue) => {
+        const select = document.getElementById(id);
+        select.value = String(settings[key]);
+        select.addEventListener('change', () => {
+            const current = getAlarmSettings();
+            current[key] = toValue(select.value);
+            saveAlarmSettings(current);
+            updateSnoozeVisibility();
+            renderUpcomingAlarms();
+        });
+    };
+    bindSelect('challenge-difficulty', 'difficulty', (v) => v);
+    bindSelect('snooze-minutes', 'snoozeMinutes', Number);
+    bindSelect('snooze-max', 'snoozeMax', Number);
+    updateSnoozeVisibility();
+
+    document.getElementById('test-alarm-btn').addEventListener('click', testAlarm);
+
     const waInput = document.getElementById('wa-number');
     waInput.value = settings.wa;
     waInput.addEventListener('change', () => {
@@ -1137,7 +1204,25 @@ function initAlarmSettings() {
     updatePermissionStatus();
 }
 
+function updateSnoozeVisibility() {
+    const wrap = document.getElementById('snooze-max-wrap');
+    if (wrap) wrap.style.display = getAlarmSettings().snoozeMinutes > 0 ? '' : 'none';
+}
+
 async function enableAlarms() {
+    if (nativeAlarm) {
+        try {
+            const { asked } = await nativeAlarm.askPermissions();
+            const steps = { notifications: 'Permite las notificaciones', exactAlarms: 'Activa "Alarmas y recordatorios"', fullScreen: 'Activa "Notificaciones de pantalla completa"', battery: 'Permite que Mallero funcione sin restricción de batería' };
+            showToast(asked === 'none' ? '✅ Todo listo' : `${steps[asked]} y vuelve a pulsar "Activar alarmas"`);
+        } catch (e) {
+            console.warn('Permisos de alarma', e);
+        }
+        lastNativeSync = '';
+        await syncNativeAlarms();
+        updatePermissionStatus();
+        return;
+    }
     unlockAudio();
     if ('Notification' in window && Notification.permission === 'default') {
         await Notification.requestPermission();
@@ -1146,8 +1231,28 @@ async function enableAlarms() {
     updatePermissionStatus();
 }
 
-function updatePermissionStatus() {
+async function updatePermissionStatus() {
     const status = document.getElementById('alarm-permission-status');
+    if (nativeAlarm) {
+        try {
+            const p = await nativeAlarm.getStatus();
+            const missing = [];
+            if (!p.notifications) missing.push('notificaciones');
+            if (!p.exactAlarms) missing.push('alarmas exactas');
+            if (!p.fullScreen) missing.push('pantalla completa');
+            if (!p.batteryUnrestricted) missing.push('batería sin restricción');
+            if (missing.length === 0) {
+                status.textContent = '✅ Alarmas del sistema activas: suenan aunque cierres la app.';
+                status.style.color = '#10b981';
+            } else {
+                status.textContent = `⚠️ Falta permitir: ${missing.join(', ')}. Pulsa "Activar alarmas".`;
+                status.style.color = '#f59e0b';
+            }
+        } catch (e) {
+            status.textContent = 'No se pudo comprobar los permisos de alarma.';
+        }
+        return;
+    }
     if (!('Notification' in window)) {
         status.textContent = 'Tu navegador no soporta notificaciones: las alarmas se mostrarán en la página con sonido.';
     } else if (Notification.permission === 'granted') {
@@ -1161,6 +1266,7 @@ function updatePermissionStatus() {
 }
 
 function renderUpcomingAlarms() {
+    syncNativeAlarms();
     const list = document.getElementById('upcoming-alarms');
     if (!list) return;
 
@@ -1190,10 +1296,140 @@ function alarmTime(ev, settings) {
     return new Date(ev.date.getTime() - lead * 60000);
 }
 
+// --- Alarmas nativas (Android) ---
+
+function challengeTypesList(settings) {
+    const types = Object.keys(settings.challengeTypes).filter((t) => settings.challengeTypes[t]);
+    return types.length ? types : ['math'];
+}
+
+function alarmTitleFor(ev, settings) {
+    const lead = ev.type === 'noche' ? 0 : settings.lead;
+    return ev.type === 'noche' ? '🌙 Recordatorio de mañana' : `${ev.icon} ${ev.title}${lead > 0 ? ` en ${lead} min` : ''}`;
+}
+
+// Entrega al sistema Android la lista completa de alarmas futuras.
+// Solo se envía cuando algo cambió (malla o ajustes).
+async function syncNativeAlarms() {
+    if (!nativeAlarm) return;
+    const settings = getAlarmSettings();
+    const now = Date.now();
+    const alarms = buildEvents()
+        .filter((ev) => settings.types[ev.type])
+        .map((ev) => ({ ev, at: alarmTime(ev, settings).getTime() }))
+        .filter(({ at }) => at > now)
+        .slice(0, 100)
+        .map(({ ev, at }) => ({
+            key: `${ev.type}|${ev.title}|${ev.date.getTime()}`,
+            at,
+            title: alarmTitleFor(ev, settings),
+            body: eventMessage(ev).split('\n').slice(1).join('\n'),
+            challenge: !!settings.challengeOn[ev.type]
+        }));
+    const payload = {
+        alarms,
+        challengeTypes: challengeTypesList(settings),
+        difficulty: settings.difficulty,
+        snoozeMinutes: settings.snoozeMinutes,
+        snoozeMax: settings.snoozeMax
+    };
+    const signature = JSON.stringify(payload);
+    if (signature === lastNativeSync) return;
+    lastNativeSync = signature;
+    try {
+        await nativeAlarm.schedule(payload);
+    } catch (e) {
+        lastNativeSync = '';
+        console.error('No se pudieron programar las alarmas nativas', e);
+    }
+}
+
+// --- Reto en la web (pantalla completa sobre la página) ---
+
+let webChallenge = null;
+
+function openChallenge({ title, body, challenge, snoozesLeft }, onSnooze) {
+    closeChallenge();
+    const settings = getAlarmSettings();
+    const params = new URLSearchParams({
+        title,
+        body,
+        types: challengeTypesList(settings).join(','),
+        diff: settings.difficulty,
+        ch: challenge ? '1' : '0',
+        snooze: String(settings.snoozeMinutes),
+        left: String(snoozesLeft)
+    });
+    const overlay = document.createElement('div');
+    overlay.className = 'challenge-overlay';
+    overlay.innerHTML = `<iframe src="challenge.html?${params}" title="Alarma" allow="accelerometer"></iframe>`;
+    document.body.appendChild(overlay);
+
+    // Suena en bucle hasta superar el reto
+    playBeep();
+    const loop = setInterval(() => {
+        playBeep();
+        if (navigator.vibrate) navigator.vibrate([400, 200, 400]);
+    }, 2500);
+
+    const onMessage = (e) => {
+        if (!e.data || !e.data.mallero || e.source !== overlay.querySelector('iframe').contentWindow) return;
+        const action = e.data.mallero;
+        closeChallenge();
+        if (action === 'snooze' && onSnooze) onSnooze();
+    };
+    window.addEventListener('message', onMessage);
+    webChallenge = { overlay, loop, onMessage };
+}
+
+function closeChallenge() {
+    if (!webChallenge) return;
+    clearInterval(webChallenge.loop);
+    window.removeEventListener('message', webChallenge.onMessage);
+    webChallenge.overlay.remove();
+    webChallenge = null;
+}
+
+function webAlarmWithChallenge(title, body, challenge, snoozesLeft) {
+    const settings = getAlarmSettings();
+    openChallenge({ title, body, challenge, snoozesLeft }, () => {
+        showToast(`Pospuesta ${settings.snoozeMinutes} min`);
+        setTimeout(() => webAlarmWithChallenge(title, body, challenge, snoozesLeft - 1), settings.snoozeMinutes * 60000);
+    });
+}
+
+async function testAlarm() {
+    const settings = getAlarmSettings();
+    if (nativeAlarm) {
+        try {
+            await nativeAlarm.test({
+                title: '⏰ Alarma de prueba',
+                body: 'Así sonarán tus alarmas de turno',
+                challenge: true,
+                challengeTypes: challengeTypesList(settings),
+                difficulty: settings.difficulty,
+                snoozeMinutes: settings.snoozeMinutes,
+                snoozeMax: settings.snoozeMax
+            });
+            showToast('La alarma de prueba sonará en 10 segundos. Puedes bloquear el teléfono.');
+        } catch (e) {
+            showToast('No se pudo programar la prueba: revisa los permisos');
+        }
+        return;
+    }
+    unlockAudio();
+    webAlarmWithChallenge('⏰ Alarma de prueba', 'Así sonarán tus alarmas de turno', true, settings.snoozeMax);
+}
+
 // --- Sistema de Alarmas ---
 
 function checkAlarms() {
     if (scheduleData.length === 0) return;
+    // En la app Android suenan las alarmas del sistema; aquí solo se refresca la lista
+    if (nativeAlarm) {
+        renderUpcomingAlarms();
+        return;
+    }
 
     const settings = getAlarmSettings();
     const now = Date.now();
@@ -1239,6 +1475,11 @@ function triggerAlarm(ev, settings) {
             tag: `mallero-${ev.type}-${ev.date.getTime()}`,
             requireInteraction: true
         });
+    }
+
+    if (settings.challengeOn[ev.type]) {
+        webAlarmWithChallenge(alarmTitleFor(ev, settings), msgText.split('\n').slice(1).join('\n'), true, settings.snoozeMax);
+        return;
     }
 
     if (navigator.vibrate) navigator.vibrate([300, 150, 300]);
