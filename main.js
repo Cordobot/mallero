@@ -144,7 +144,7 @@ function showConfirm() {
 function init() {
     updateClock();
     setInterval(updateClock, 1000);
-    setInterval(checkAlarms, 10000);
+    if (nativeAlarm) setInterval(checkAlarms, 10000);
 
     // Al volver a la página (pestaña dormida, app en segundo plano o restaurada desde caché)
     // se refresca todo para no mostrar el día anterior
@@ -1001,7 +1001,8 @@ function parseOCRText(text) {
 function renderSchedule() {
     scheduleBody.innerHTML = '';
     scheduleContainer.style.display = 'block';
-    alarmSection.style.display = 'block';
+    // Las alarmas solo existen en la app Android; la web solo muestra la malla
+    alarmSection.style.display = nativeAlarm ? 'block' : 'none';
 
     const now = new Date();
     let closestShiftIndex = -1;
