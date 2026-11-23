@@ -308,6 +308,9 @@ function init() {
     }
 
     initAlarmSettings();
+    initUploadModal();
+    // Sin malla todavía: se abre el popup para cargarla
+    if (scheduleData.length === 0) openUploadModal();
 
     // El audio solo puede sonar después de una interacción del usuario
     document.addEventListener('pointerdown', unlockAudio, { once: true });
@@ -317,7 +320,32 @@ function isExcelFile(file) {
     return /\.(xlsx|xlsm|xls)$/i.test(file.name || '');
 }
 
+// --- Popup "Subir malla" ---
+
+function openUploadModal() {
+    const overlay = document.getElementById('upload-overlay');
+    overlay.classList.add('open');
+    overlay.setAttribute('aria-hidden', 'false');
+    document.body.style.overflow = 'hidden';
+}
+
+function closeUploadModal() {
+    const overlay = document.getElementById('upload-overlay');
+    overlay.classList.remove('open');
+    overlay.setAttribute('aria-hidden', 'true');
+    document.body.style.overflow = '';
+}
+
+function initUploadModal() {
+    const overlay = document.getElementById('upload-overlay');
+    document.getElementById('open-upload-btn').addEventListener('click', openUploadModal);
+    document.getElementById('upload-close-btn').addEventListener('click', closeUploadModal);
+    overlay.addEventListener('click', (e) => { if (e.target === overlay) closeUploadModal(); });
+    document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && overlay.classList.contains('open')) closeUploadModal(); });
+}
+
 function applySchedule(data) {
+    closeUploadModal();
     scheduleData = data;
     localStorage.setItem('mallero_data', JSON.stringify(scheduleData));
     markLocalChange();
@@ -1431,6 +1459,8 @@ async function syncNativeAlarms() {
 let webChallenge = null;
 
 function openChallenge({ title, body, challenge, snoozesLeft }, onSnooze) {
+    // Los retos para apagar la alarma solo existen en la app Android
+    if (!nativeAlarm) return;
     closeChallenge();
     const settings = getAlarmSettings();
     const params = new URLSearchParams({

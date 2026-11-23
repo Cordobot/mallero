@@ -32,66 +32,13 @@
                 <div id="current-date" style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 4px;"></div>
                 <div id="countdown-display" style="font-size: 1.5rem; font-weight: 700; color: #f59e0b; letter-spacing: 1px;">--:--:--</div>
             </div>
+            <button id="open-upload-btn" class="btn-primary upload-open-btn">📤 Subir malla</button>
         </header>
 
         <main>
             <div id="save-toast" class="toast-top">✅ Cambios guardados correctamente</div>
 
-            <!-- Sección de Identidad -->
-            <section class="card" id="auth-section" style="margin-bottom: 20px; display: flex; align-items: center; gap: 15px; padding: 1rem 1.5rem; flex-wrap: wrap;">
-                <div style="font-size: 1.5rem;">🆔</div>
-                <div style="flex: 1; min-width: 200px;">
-                    <label for="user-id" style="display: block; font-size: 0.75rem; color: var(--text-muted); margin-bottom: 4px;">Ingresa tu Cédula para ver/guardar tu malla</label>
-                    <input type="text" id="user-id" placeholder="Ej: 12345678" style="width: 100%; background: rgba(15, 23, 42, 0.5); color: white; border: 1px solid var(--border-color); border-radius: 8px; padding: 0.5rem 0.8rem; font-size: 1rem; outline: none;">
-                </div>
-                <div style="width: 130px;">
-                    <label for="user-pin" style="display: block; font-size: 0.75rem; color: var(--text-muted); margin-bottom: 4px;">PIN de sincronización</label>
-                    <input type="password" id="user-pin" placeholder="4-6 dígitos" inputmode="numeric" maxlength="6" autocomplete="off" style="width: 100%; background: rgba(15, 23, 42, 0.5); color: white; border: 1px solid var(--border-color); border-radius: 8px; padding: 0.5rem 0.8rem; font-size: 1rem; outline: none;">
-                </div>
-                <button id="load-btn" class="btn-primary" style="padding: 0.55rem 1.5rem; font-size: 0.85rem; margin: 0;">Cargar</button>
-                <p id="sync-status" style="width: 100%; font-size: 0.75rem; color: var(--text-muted); margin: 0;">Usa la misma cédula y PIN en la web y en la app para tener los mismos datos.</p>
-            </section>
 
-            <section class="card" id="input-section">
-                <h2 style="font-size: 1.1rem; margin-bottom: 0.5rem;">📊 Sube tu malla en Excel</h2>
-                <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 0.75rem;">Se busca tu fila por cédula. El archivo se lee solo en tu navegador: no se sube a ningún servidor.</p>
-                <div class="upload-container" id="xlsx-drop-zone" style="padding: 1.5rem;">
-                    <input type="file" id="xlsx-upload" accept=".xlsx,.xls,.xlsm,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel" hidden>
-                    <div class="upload-content">
-                        <span class="upload-icon" style="font-size: 2.2rem; margin-bottom: 0.5rem;">📂</span>
-                        <p id="xlsx-name-display" style="font-size: 0.9rem;">Arrastra aquí el archivo <span>.xlsx</span> o haz clic para elegirlo</p>
-                    </div>
-                </div>
-
-                <details style="margin-top: 1.25rem;">
-                    <summary style="cursor: pointer; font-size: 0.85rem; color: var(--text-muted);">Otras opciones: captura de pantalla o pegar texto</summary>
-                    <div style="display: flex; gap: 20px; flex-wrap: wrap; align-items: stretch; margin-top: 1rem;">
-                        <div style="flex: 1; min-width: 250px; display: flex; flex-direction: column;">
-                            <h2 style="font-size: 1rem; margin-bottom: 0.5rem;">📸 Subir Imagen</h2>
-                            <div class="upload-container" id="drop-zone" style="flex: 1; padding: 1rem;">
-                                <input type="file" id="excel-upload" accept="image/*" hidden>
-                                <div class="upload-content">
-                                    <span class="upload-icon" style="font-size: 1.8rem;">🖼️</span>
-                                    <p id="file-name-display" style="font-size: 0.85rem;">Arrastra o Pega (Ctrl+V) captura aquí</p>
-                                </div>
-                            </div>
-                            <div class="upload-actions" id="upload-actions" style="display: none; margin-top: 8px;">
-                                <div class="progress-container">
-                                    <div class="progress-bar" id="upload-progress"></div>
-                                </div>
-                                <p id="ocr-status" style="display: none; font-size: 0.8rem; color: var(--text-muted);"><span id="ocr-progress"></span></p>
-                            </div>
-                            <button id="process-btn" class="btn-primary" style="padding: 0.6rem 1rem; font-size: 0.85rem; margin-top: 10px;">Procesar Imagen</button>
-                        </div>
-
-                        <div style="flex: 1; min-width: 250px; display: flex; flex-direction: column;">
-                            <h2 style="font-size: 1rem; margin-bottom: 0.5rem;">📝 Pegar desde Excel</h2>
-                            <textarea id="excel-paste" placeholder="Pega los datos de Excel aquí..." style="flex: 1; width: 100%; min-height: 80px; background: rgba(15, 23, 42, 0.5); color: white; border: 1px solid var(--border-color); border-radius: 0.75rem; padding: 0.8rem; font-family: monospace; resize: none; box-sizing: border-box;"></textarea>
-                            <button id="process-text-btn" class="btn-primary" style="margin-top: 10px; background: linear-gradient(135deg, #10b981 0%, #059669 100%); padding: 0.6rem 1rem; font-size: 0.85rem;">Procesar Texto</button>
-                        </div>
-                    </div>
-                </details>
-            </section>
 
             <section class="schedule-section card" id="schedule-container" style="display: none;">
                 <div class="section-header">
@@ -226,6 +173,72 @@
                     </div>
                 </div>
             </div>
+        </div>
+    </div>
+
+
+    <!-- Popup: identidad + subir malla -->
+    <div id="upload-overlay" class="upload-overlay" aria-hidden="true">
+        <div class="upload-modal" role="dialog" aria-modal="true" aria-labelledby="upload-modal-title">
+            <div class="upload-modal-header">
+                <h2 id="upload-modal-title">📤 Subir malla</h2>
+                <button id="upload-close-btn" class="upload-close" aria-label="Cerrar">✕</button>
+            </div>
+            <!-- Sección de Identidad -->
+            <section id="auth-section" style="margin-bottom: 20px; display: flex; align-items: center; gap: 15px; padding: 1rem 1.5rem; flex-wrap: wrap;">
+                <div style="font-size: 1.5rem;">🆔</div>
+                <div style="flex: 1; min-width: 200px;">
+                    <label for="user-id" style="display: block; font-size: 0.75rem; color: var(--text-muted); margin-bottom: 4px;">Ingresa tu Cédula para ver/guardar tu malla</label>
+                    <input type="text" id="user-id" placeholder="Ej: 12345678" style="width: 100%; background: rgba(15, 23, 42, 0.5); color: white; border: 1px solid var(--border-color); border-radius: 8px; padding: 0.5rem 0.8rem; font-size: 1rem; outline: none;">
+                </div>
+                <div style="width: 130px;">
+                    <label for="user-pin" style="display: block; font-size: 0.75rem; color: var(--text-muted); margin-bottom: 4px;">PIN de sincronización</label>
+                    <input type="password" id="user-pin" placeholder="4-6 dígitos" inputmode="numeric" maxlength="6" autocomplete="off" style="width: 100%; background: rgba(15, 23, 42, 0.5); color: white; border: 1px solid var(--border-color); border-radius: 8px; padding: 0.5rem 0.8rem; font-size: 1rem; outline: none;">
+                </div>
+                <button id="load-btn" class="btn-primary" style="padding: 0.55rem 1.5rem; font-size: 0.85rem; margin: 0;">Cargar</button>
+                <p id="sync-status" style="width: 100%; font-size: 0.75rem; color: var(--text-muted); margin: 0;">Usa la misma cédula y PIN en la web y en la app para tener los mismos datos.</p>
+            </section>
+
+            <section id="input-section">
+                <h2 style="font-size: 1.1rem; margin-bottom: 0.5rem;">📊 Sube tu malla en Excel</h2>
+                <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 0.75rem;">Se busca tu fila por cédula. El archivo se lee solo en tu navegador: no se sube a ningún servidor.</p>
+                <div class="upload-container" id="xlsx-drop-zone" style="padding: 1.5rem;">
+                    <input type="file" id="xlsx-upload" accept=".xlsx,.xls,.xlsm,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel" hidden>
+                    <div class="upload-content">
+                        <span class="upload-icon" style="font-size: 2.2rem; margin-bottom: 0.5rem;">📂</span>
+                        <p id="xlsx-name-display" style="font-size: 0.9rem;">Arrastra aquí el archivo <span>.xlsx</span> o haz clic para elegirlo</p>
+                    </div>
+                </div>
+
+                <details style="margin-top: 1.25rem;">
+                    <summary style="cursor: pointer; font-size: 0.85rem; color: var(--text-muted);">Otras opciones: captura de pantalla o pegar texto</summary>
+                    <div style="display: flex; gap: 20px; flex-wrap: wrap; align-items: stretch; margin-top: 1rem;">
+                        <div style="flex: 1; min-width: 250px; display: flex; flex-direction: column;">
+                            <h2 style="font-size: 1rem; margin-bottom: 0.5rem;">📸 Subir Imagen</h2>
+                            <div class="upload-container" id="drop-zone" style="flex: 1; padding: 1rem;">
+                                <input type="file" id="excel-upload" accept="image/*" hidden>
+                                <div class="upload-content">
+                                    <span class="upload-icon" style="font-size: 1.8rem;">🖼️</span>
+                                    <p id="file-name-display" style="font-size: 0.85rem;">Arrastra o Pega (Ctrl+V) captura aquí</p>
+                                </div>
+                            </div>
+                            <div class="upload-actions" id="upload-actions" style="display: none; margin-top: 8px;">
+                                <div class="progress-container">
+                                    <div class="progress-bar" id="upload-progress"></div>
+                                </div>
+                                <p id="ocr-status" style="display: none; font-size: 0.8rem; color: var(--text-muted);"><span id="ocr-progress"></span></p>
+                            </div>
+                            <button id="process-btn" class="btn-primary" style="padding: 0.6rem 1rem; font-size: 0.85rem; margin-top: 10px;">Procesar Imagen</button>
+                        </div>
+
+                        <div style="flex: 1; min-width: 250px; display: flex; flex-direction: column;">
+                            <h2 style="font-size: 1rem; margin-bottom: 0.5rem;">📝 Pegar desde Excel</h2>
+                            <textarea id="excel-paste" placeholder="Pega los datos de Excel aquí..." style="flex: 1; width: 100%; min-height: 80px; background: rgba(15, 23, 42, 0.5); color: white; border: 1px solid var(--border-color); border-radius: 0.75rem; padding: 0.8rem; font-family: monospace; resize: none; box-sizing: border-box;"></textarea>
+                            <button id="process-text-btn" class="btn-primary" style="margin-top: 10px; background: linear-gradient(135deg, #10b981 0%, #059669 100%); padding: 0.6rem 1rem; font-size: 0.85rem;">Procesar Texto</button>
+                        </div>
+                    </div>
+                </details>
+            </section>
         </div>
     </div>
 
